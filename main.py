@@ -190,10 +190,10 @@ class tomatoClock:
         if self.is_running and self.state == "focus":
             self.passing_time_sec += 1
             self.master.after(1000, self.update_timer)
-            if self.passing_time_sec % 2 == 0:
+            if self.passing_time_sec % 60 == 0:
                 self.passing_time += 1
                 self.meter.configure(amountused=self.focus_time - self.passing_time, amounttotal=self.focus_time)
-            if self.passing_time_sec >= self.focus_time * 2:
+            if self.passing_time_sec >= self.focus_time * 60:
                 self.is_running = False
                 self.state = "break"
                 self.play_break_sound()
@@ -210,10 +210,10 @@ class tomatoClock:
         elif self.is_running and self.state == "break":
             self.passing_time_sec += 1
             self.master.after(1000, self.update_timer)
-            if self.passing_time_sec % 2 == 0:
+            if self.passing_time_sec % 60 == 0:
                 self.passing_time += 1
                 self.meter.configure(amountused=self.break_time - self.passing_time, amounttotal=self.break_time)
-            if self.passing_time_sec >= self.break_time * 2:
+            if self.passing_time_sec >= self.break_time * 60:
                 self.is_running = False
                 self.state = "focus"
                 self.play_focus_sound()
