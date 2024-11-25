@@ -297,6 +297,7 @@ class tomatoClock:
         if self.shake_flag.get():
             if self.master.state() == "iconic":
                 self.master.deiconify()
+            self.master.attributes("-topmost", True)
             sign = 1
             for _ in range(10):
                 x_offset = sign * 50
