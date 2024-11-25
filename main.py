@@ -3,6 +3,9 @@ import ttkbootstrap as ttk
 import winsound
 from base64 import b64decode
 from PIL import ImageTk
+from utils import TomatoMeter
+
+min2sec = 60
 
 class tomatoClock:
     def __init__(self, master):
@@ -42,18 +45,19 @@ class tomatoClock:
         self.notebook.add(self.tab1, text="计时")
 
         # tab1
-        self.meter = ttk.Meter(
+        self.meter = TomatoMeter(
             self.tab1,
             metersize=150,
-            amountused=self.focus_time,
-            amounttotal=self.focus_time,
+            amountused=self.focus_time * min2sec,
+            amounttotal=self.focus_time * min2sec,
+            amountused_show=self.focus_time,
             meterthickness=15,
             metertype="semi",
             bootstyle="heat",
             textright='min',
             stripethickness=2,
             subtext="准备专注",
-            interactive=False
+            interactive=False,
         )
         self.meter.pack(pady=(5,0))
 
@@ -182,7 +186,11 @@ class tomatoClock:
         self.state = "focus"
         self.start_pause_button.config(text="开始", bootstyle="heat")
         self.reset_button.config(bootstyle="heat")
-        self.meter.configure(amountused=self.focus_time, amounttotal=self.focus_time, subtext="准备专注", bootstyle="heat")
+        self.meter.configure(amountused=self.focus_time * min2sec,
+                             amounttotal=self.focus_time * min2sec,
+                             amountused_show=self.focus_time,
+                             subtext="准备专注",
+                             bootstyle="heat")
         self.passing_time_sec = 0
         self.passing_time = 0
 
@@ -190,17 +198,20 @@ class tomatoClock:
         if self.is_running and self.state == "focus":
             self.passing_time_sec += 1
             self.master.after(1000, self.update_timer)
-            if self.passing_time_sec % 60 == 0:
+            self.meter.step(1)
+            if self.passing_time_sec % min2sec == 0:
                 self.passing_time += 1
-                self.meter.configure(amountused=self.focus_time - self.passing_time, amounttotal=self.focus_time)
-            if self.passing_time_sec >= self.focus_time * 60:
+                self.meter.configure(amountused_show=self.focus_time - self.passing_time)
+            if self.passing_time_sec >= self.focus_time * min2sec:
                 self.is_running = False
                 self.state = "break"
                 self.play_break_sound()
                 self.shake_window()
                 self.start_pause_button.config(text="开始", bootstyle="success")
                 self.reset_button.config(bootstyle="success")
-                self.meter.configure(amountused=self.break_time, amounttotal=self.break_time,
+                self.meter.configure(amountused=self.break_time * min2sec,
+                                     amounttotal=self.break_time * min2sec,
+                                     amountused_show=self.break_time,
                                      subtext="准备休息", bootstyle="success")
                 self.passing_time_sec = 0
                 self.passing_time = 0
@@ -210,17 +221,20 @@ class tomatoClock:
         elif self.is_running and self.state == "break":
             self.passing_time_sec += 1
             self.master.after(1000, self.update_timer)
-            if self.passing_time_sec % 60 == 0:
+            self.meter.step(1)
+            if self.passing_time_sec % min2sec == 0:
                 self.passing_time += 1
-                self.meter.configure(amountused=self.break_time - self.passing_time, amounttotal=self.break_time)
-            if self.passing_time_sec >= self.break_time * 60:
+                self.meter.configure(amountused_show=self.break_time - self.passing_time)
+            if self.passing_time_sec >= self.break_time * min2sec:
                 self.is_running = False
                 self.state = "focus"
                 self.play_focus_sound()
                 self.shake_window()
                 self.start_pause_button.config(text="开始", bootstyle="heat")
                 self.reset_button.config(bootstyle="heat")
-                self.meter.configure(amountused=self.focus_time, amounttotal=self.focus_time,
+                self.meter.configure(amountused=self.focus_time * min2sec,
+                                     amounttotal=self.focus_time * min2sec,
+                                     amountused_show=self.focus_time,
                                      subtext="准备专注", bootstyle="heat")
                 self.passing_time_sec = 0
                 self.passing_time = 0
@@ -234,7 +248,9 @@ class tomatoClock:
             self.focus_time += 5
             self.focus_time_label.config(text=f"{self.focus_time:02d}")
             if self.state == "focus":
-                self.meter.configure(amountused=max(0, self.focus_time - self.passing_time), amounttotal=self.focus_time)
+                self.meter.configure(amountused=max(0, (self.focus_time - self.passing_time) * min2sec),
+                                     amounttotal=self.focus_time * min2sec,
+                                     amountused_show=self.focus_time)
             self.save_config()
 
     def decrease_focus_time(self):
@@ -242,7 +258,9 @@ class tomatoClock:
             self.focus_time -= 5
             self.focus_time_label.config(text=f"{self.focus_time:02d}")
             if self.state == "focus":
-                self.meter.configure(amountused=max(0, self.focus_time - self.passing_time), amounttotal=self.focus_time)
+                self.meter.configure(amountused=max(0, (self.focus_time - self.passing_time) * min2sec),
+                                     amounttotal=self.focus_time * min2sec,
+                                     amountused_show=self.focus_time)
             self.save_config()
 
     def increase_break_time(self):
@@ -250,7 +268,9 @@ class tomatoClock:
             self.break_time += 5
             self.break_time_label.config(text=f"{self.break_time:02d}")
             if self.state == "break":
-                self.meter.configure(max(0, self.break_time - self.passing_time), amounttotal=self.break_time)
+                self.meter.configure(max(0, (self.break_time - self.passing_time) * min2sec),
+                                     amounttotal=self.break_time * min2sec,
+                                     amountused_show=self.break_time)
             self.save_config()
 
     def decrease_break_time(self):
@@ -258,7 +278,9 @@ class tomatoClock:
             self.break_time -= 5
             self.break_time_label.config(text=f"{self.break_time:02d}")
             if self.state == "break":
-                self.meter.configure(max(0, self.break_time - self.passing_time),amounttotal=self.break_time)
+                self.meter.configure(max(0, (self.break_time - self.passing_time) * min2sec),
+                                     amounttotal=self.break_time * min2sec,
+                                     amountused_show=self.break_time)
             self.save_config()
 
     def play_break_sound(self):
@@ -273,6 +295,8 @@ class tomatoClock:
 
     def shake_window(self):
         if self.shake_flag.get():
+            if self.master.state() == "iconic":
+                self.master.deiconify()
             sign = 1
             for _ in range(10):
                 x_offset = sign * 50
