@@ -1,11 +1,15 @@
 import tkinter as tk
+import tkinter.filedialog
 import ttkbootstrap as ttk
 import winsound
 from base64 import b64decode
 from PIL import ImageTk
+import os
+import time
+import threading
 from utils import TomatoMeter
 
-min2sec = 60
+min2sec = 2
 
 class tomatoClock:
     def __init__(self, master):
@@ -113,7 +117,7 @@ class tomatoClock:
         self.notebook.add(self.tab3, text="设置")
 
         focus_time_frame = ttk.Frame(self.tab3)
-        focus_time_frame.pack(pady=(10,0))
+        focus_time_frame.pack(pady=(12,0))
 
         # 专注时间显示标签
         ttk.Label(focus_time_frame, text="专注时间:").pack(side=tk.LEFT)
@@ -151,8 +155,10 @@ class tomatoClock:
         remind_frame = ttk.Frame(self.tab3)
         remind_frame.pack(pady=(25,0))
 
-        ttk.Checkbutton(remind_frame, text = "声音提示", variable=self.beep_flag, command=self.save_config).pack(side=tk.LEFT, padx=(0,15))
-        ttk.Checkbutton(remind_frame, text = "抖窗提示", variable=self.shake_flag, command=self.save_config).pack(side=tk.LEFT, padx=(15,0))
+        ttk.Checkbutton(remind_frame, text = "声音提示", variable=self.beep_flag,
+                        command=self.set_remind_sound).pack(side=tk.LEFT, padx=(0,15))
+        ttk.Checkbutton(remind_frame, text = "抖窗提示", variable=self.shake_flag,
+                        command=self.set_shake_window).pack(side=tk.LEFT, padx=(15,0))
 
         # 自定义提示声
         custom_sound_frame = ttk.Frame(self.tab3)
@@ -163,8 +169,9 @@ class tomatoClock:
         self.remind_sound_entry = tk.Entry(custom_sound_frame, textvariable=self.remind_sound_path,
                  width=10, state=remind_sound_state)
         self.remind_sound_entry.pack(side=tk.LEFT, padx=(5, 0))
-        self.remind_sound_select_button = ttk.Button(custom_sound_frame, text="...", command=self.select_remind_sound_path,
-                   style='tomato.TButton', state=remind_sound_state)
+        self.remind_sound_select_button = ttk.Button(custom_sound_frame, text="...",
+                                                     command=self.select_remind_sound_path,
+                                                     style='tomato.TButton', state=remind_sound_state)
         self.remind_sound_select_button.pack(side=tk.LEFT, padx=(5, 0))
 
         # 休息选项
@@ -172,9 +179,9 @@ class tomatoClock:
         break_option_frame.pack(pady=(25,0))
 
         ttk.Label(break_option_frame, text="休息时:").pack(side=tk.LEFT, padx=(0, 0))
-        ttk.Checkbutton(break_option_frame, text="锁屏", variable=self.lock_screen_flag, command=self.save_config).pack(
+        ttk.Checkbutton(break_option_frame, text="锁屏", variable=self.lock_screen_flag, command=self.set_lock_screen).pack(
             side=tk.LEFT, padx=(15, 0))
-        ttk.Checkbutton(break_option_frame, text="播放音乐", variable=self.play_music_flag, command=self.save_config).pack(
+        ttk.Checkbutton(break_option_frame, text="播放音乐", variable=self.play_music_flag, command=self.set_play_music).pack(
             side=tk.LEFT, padx=(15, 0))
 
         # 自定义音乐
@@ -189,6 +196,9 @@ class tomatoClock:
                    style='tomato.TButton', state=music_state)
         self.music_select_button.pack(side=tk.LEFT, padx=(5, 0))
 
+        # 赞赏tab
+        self.tab4 = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab4, text="赞赏")
 
     def load_config(self):
         try:
@@ -202,27 +212,13 @@ class tomatoClock:
             pass
 
     def save_config(self):
+        if not os.path.exists(self.remind_sound_path.get()):
+            self.remind_sound_path.set("默认")
         with open(self.config_path, "w") as f:
             f.write(f"{self.focus_time}\n")
             f.write(f"{self.break_time}\n")
             f.write(f"{self.beep_flag.get()}\n")
             f.write(f"{self.shake_flag.get()}\n")
-        if self.beep_flag.get():
-            self.remind_sound_label.config(state=tk.NORMAL)
-            self.remind_sound_entry.config(state=tk.NORMAL)
-            self.remind_sound_select_button.config(state=tk.NORMAL)
-        else:
-            self.remind_sound_label.config(state=tk.DISABLED)
-            self.remind_sound_entry.config(state=tk.DISABLED)
-            self.remind_sound_select_button.config(state=tk.DISABLED)
-        if self.play_music_flag.get():
-            self.music_label.config(state=tk.NORMAL)
-            self.music_path_entry.config(state=tk.NORMAL)
-            self.music_select_button.config(state=tk.NORMAL)
-        else:
-            self.music_label.config(state=tk.DISABLED)
-            self.music_path_entry.config(state=tk.DISABLED)
-            self.music_select_button.config(state=tk.DISABLED)
 
     def start_pause(self):
         if self.is_running:
@@ -277,6 +273,7 @@ class tomatoClock:
                 self.passing_time = 0
                 self.total_focus_time += self.focus_time
                 self.total_focus_time_label.config(text=f"{self.total_focus_time}")
+                self.lock_screen()
 
         elif self.is_running and self.state == "break":
             self.passing_time_sec += 1
@@ -343,6 +340,55 @@ class tomatoClock:
                                      amountused_show=self.break_time)
             self.save_config()
 
+    def set_remind_sound(self):
+        if self.beep_flag.get():
+            self.remind_sound_label.config(state=tk.NORMAL)
+            self.remind_sound_entry.config(state=tk.NORMAL)
+            self.remind_sound_select_button.config(state=tk.NORMAL)
+            if self.remind_sound_path.get() == "默认":
+                thread = threading.Thread(target=self.play_default_remind_sound)
+                thread.start()
+        else:
+            self.remind_sound_label.config(state=tk.DISABLED)
+            self.remind_sound_entry.config(state=tk.DISABLED)
+            self.remind_sound_select_button.config(state=tk.DISABLED)
+        self.save_config()
+
+    def set_shake_window(self):
+        if self.shake_flag.get():
+            self.shake_window()
+        self.save_config()
+
+    def set_lock_screen(self):
+        self.save_config()
+
+    def set_play_music(self):
+        if self.play_music_flag.get():
+            self.music_label.config(state=tk.NORMAL)
+            self.music_path_entry.config(state=tk.NORMAL)
+            self.music_select_button.config(state=tk.NORMAL)
+        else:
+            self.music_label.config(state=tk.DISABLED)
+            self.music_path_entry.config(state=tk.DISABLED)
+            self.music_select_button.config(state=tk.DISABLED)
+        self.save_config()
+
+    def select_remind_sound_path(self):
+        path_ = tkinter.filedialog.askopenfilename(filetypes=[("音频文件", "*.mp3;*.wav")])
+        path_ = path_.replace("/", "\\")
+        if os.path.exists(path_):
+            self.remind_sound_path.set(path_)
+
+    def select_music_path(self):
+        path_ = tkinter.filedialog.askopenfilename(filetypes=[("音频文件", "*.mp3;*.wav")])
+        path_ = path_.replace("/", "\\")
+        self.music_path.set(path_)
+
+    def play_default_remind_sound(self):
+        self.play_break_sound()
+        time.sleep(0.1)
+        self.play_focus_sound()
+
     def play_break_sound(self):
         if self.beep_flag.get():
             winsound.Beep(200, 400)
@@ -366,13 +412,11 @@ class tomatoClock:
                 self.master.update()
                 self.master.after(50)
 
-    def select_remind_sound_path(self):
-        pass
-        #TODO
-
-    def select_music_path(self):
-        pass
-        #TODO
+    def lock_screen(self):
+        if self.lock_screen_flag.get():
+            self.start_pause_button.invoke()
+            time.sleep(0.5)
+            os.system("rundll32.exe user32.dll, LockWorkStation")
 
 if __name__ == '__main__':
     root = ttk.Window()

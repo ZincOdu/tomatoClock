@@ -1,6 +1,8 @@
 import tkinter as tk
 import ttkbootstrap as ttk
 from PIL import Image, ImageTk, ImageDraw
+from ttkbootstrap import utility
+
 
 class TomatoMeter(ttk.Meter):
     def __init__(self, master, amountused_show = 0, **kwargs):
