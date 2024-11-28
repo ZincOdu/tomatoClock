@@ -5,6 +5,9 @@ from ttkbootstrap import utility
 import winsound
 from base64 import b64decode
 
+def warning_sound():
+    winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS)
+
 def break_beep():
     winsound.Beep(200, 400)
     winsound.Beep(400, 400)
