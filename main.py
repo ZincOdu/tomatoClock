@@ -92,31 +92,32 @@ class tomatoClock:
         self.tab2 = ttk.Frame(self.notebook)
         self.notebook.add(self.tab2, text="统计")
 
-        # 在第二个Tab页面添加内容
+        # 日期
+        date_frame = ttk.Frame(self.tab2)
+        date_frame.pack(pady=(5, 0))
+        tk.Label(date_frame, text="今天是").pack(side=tk.LEFT)
+        tk.Label(date_frame, text=time.strftime("%Y-%m-%d %A", time.localtime())).pack(side=tk.LEFT, padx=5)
+
         # 总番茄统计
         tomato_count_frame = ttk.Frame(self.tab2)
-        tomato_count_frame.pack(pady=(50, 0))
+        tomato_count_frame.pack(pady=(5, 0))
 
-        tk.Label(tomato_count_frame, text=f"共完成 ").pack(side=tk.LEFT)
+        tk.Label(tomato_count_frame, text=f"共完成").pack(side=tk.LEFT,padx=2)
         self.total_tomato_label = tk.Label(tomato_count_frame, text=f"{self.tomato_count}")
-        self.total_tomato_label.pack(side=tk.LEFT, padx=5)
-        tk.Label(tomato_count_frame, text=f" 个番茄").pack(side=tk.LEFT, padx=5)
+        self.total_tomato_label.pack(side=tk.LEFT, padx=2)
+        tk.Label(tomato_count_frame, text=f"个番茄").pack(side=tk.LEFT, padx=2)
 
-        # 总专注时长统计
-        focus_time_frame = ttk.Frame(self.tab2)
-        focus_time_frame.pack(pady=(10, 0))
-        tk.Label(focus_time_frame, text=f"专注总计 ").pack(side=tk.LEFT)
-        self.total_focus_time_label = ttk.Label(focus_time_frame, text=f"{self.total_focus_time}")
-        self.total_focus_time_label.pack(side=tk.LEFT, padx=5)
-        tk.Label(focus_time_frame, text=f"分钟").pack(side=tk.LEFT, padx=5)
-
-        # 总休息时长统计
-        break_time_frame = ttk.Frame(self.tab2)
-        break_time_frame.pack(pady=(10, 0))
-        tk.Label(break_time_frame, text=f"休息总计 ").pack(side=tk.LEFT)
-        self.total_break_time_label = tk.Label(break_time_frame, text=f"{self.total_break_time}")
-        self.total_break_time_label.pack(side=tk.LEFT, padx=5)
-        tk.Label(break_time_frame, text=f"分钟").pack(side=tk.LEFT, padx=5)
+        # 总时长统计
+        total_time_frame = ttk.Frame(self.tab2)
+        total_time_frame.pack(pady=(2, 0))
+        tk.Label(total_time_frame, text=f"专注").pack(side=tk.LEFT,padx=2)
+        self.total_focus_time_label = ttk.Label(total_time_frame, text=f"{self.total_focus_time}")
+        self.total_focus_time_label.pack(side=tk.LEFT, padx=2)
+        tk.Label(total_time_frame, text=f"分钟，").pack(side=tk.LEFT, padx=2)
+        tk.Label(total_time_frame, text=f"休息").pack(side=tk.LEFT,padx=(0,2))
+        self.total_break_time_label = tk.Label(total_time_frame, text=f"{self.total_break_time}")
+        self.total_break_time_label.pack(side=tk.LEFT, padx=2)
+        tk.Label(total_time_frame, text=f"分钟").pack(side=tk.LEFT, padx=2)
 
         # tab3
         self.tab3 = ttk.Frame(self.notebook)
@@ -236,9 +237,6 @@ class tomatoClock:
             pass
 
     def save_config(self):
-        if self.music_channel is not None:
-            self.music_channel.stop()
-            self.music_channel = None
         if not os.path.exists(self.remind_sound_path.get()):
             self.remind_sound_path.set("默认")
             self.custom_remind_sound = None
@@ -447,8 +445,7 @@ class tomatoClock:
         self.save_config()
 
     def set_lock_screen(self):
-        if self.can_click():
-            self.save_config()
+        self.save_config()
 
     def set_play_music(self):
         if self.play_music_flag.get():
@@ -459,9 +456,6 @@ class tomatoClock:
             self.music_label.config(state=tk.DISABLED)
             self.music_path_entry.config(state=tk.DISABLED)
             self.music_select_button.config(state=tk.DISABLED)
-            if self.music_channel is not None:
-                self.music_channel.stop()
-                self.music_channel = None
         self.save_config()
 
     def select_remind_sound_path(self):
@@ -478,6 +472,9 @@ class tomatoClock:
             path_ = tkinter.filedialog.askopenfilename(filetypes=[("音频文件", "*.mp3;*.wav")])
             path_ = path_.replace("/", "\\")
             if os.path.exists(path_):
+                if self.music_channel is not None:
+                    self.music_channel.stop()
+                    self.music_channel = None
                 self.music_path.set(path_)
                 self.custom_music = pygame.mixer.Sound(path_)
             self.save_config()
@@ -549,7 +546,6 @@ class tomatoClock:
 
     def lock_screen(self):
         if self.lock_screen_flag.get():
-            time.sleep(0.5)
             self.switch_to_start()
             os.system("rundll32.exe user32.dll, LockWorkStation")
 
