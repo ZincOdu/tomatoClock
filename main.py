@@ -242,13 +242,9 @@ class tomatoClock:
         if not os.path.exists(self.remind_sound_path.get()):
             self.remind_sound_path.set("默认")
             self.custom_remind_sound = None
-        else:
-            self.custom_remind_sound = pygame.mixer.Sound(self.remind_sound_path.get())
         if not os.path.exists(self.music_path.get()):
             self.music_path.set("")
             self.custom_music = None
-        else:
-            self.custom_music = pygame.mixer.Sound(self.music_path.get())
         with open(self.config_path, "w") as f:
             f.write(f"{self.focus_time}\n")
             f.write(f"{self.break_time}\n")
@@ -268,6 +264,14 @@ class tomatoClock:
         for frame_child in self.tab3.winfo_children():
             for child in frame_child.winfo_children():
                 child.config(state=tk.NORMAL)
+                if not self.beep_flag.get():
+                    self.remind_sound_label.config(state=tk.DISABLED)
+                    self.remind_sound_entry.config(state=tk.DISABLED)
+                    self.remind_sound_select_button.config(state=tk.DISABLED)
+                if not self.play_music_flag.get():
+                    self.music_label.config(state=tk.DISABLED)
+                    self.music_path_entry.config(state=tk.DISABLED)
+                    self.music_select_button.config(state=tk.DISABLED)
 
     def switch_to_pause(self):
         self.is_running = False
@@ -426,17 +430,16 @@ class tomatoClock:
                 threading.Thread(target=warning_sound).start()
 
     def set_remind_sound(self):
-        if self.can_click():
-            if self.beep_flag.get():
-                self.remind_sound_label.config(state=tk.NORMAL)
-                self.remind_sound_entry.config(state=tk.NORMAL)
-                self.remind_sound_select_button.config(state=tk.NORMAL)
-                threading.Thread(target=self.play_remind_sound).start()
-            else:
-                self.remind_sound_label.config(state=tk.DISABLED)
-                self.remind_sound_entry.config(state=tk.DISABLED)
-                self.remind_sound_select_button.config(state=tk.DISABLED)
-            self.save_config()
+        if self.beep_flag.get():
+            self.remind_sound_label.config(state=tk.NORMAL)
+            self.remind_sound_entry.config(state=tk.NORMAL)
+            self.remind_sound_select_button.config(state=tk.NORMAL)
+            threading.Thread(target=self.play_remind_sound).start()
+        else:
+            self.remind_sound_label.config(state=tk.DISABLED)
+            self.remind_sound_entry.config(state=tk.DISABLED)
+            self.remind_sound_select_button.config(state=tk.DISABLED)
+        self.save_config()
 
     def set_shake_window(self):
         if self.shake_flag.get():
@@ -448,16 +451,18 @@ class tomatoClock:
             self.save_config()
 
     def set_play_music(self):
-        if self.can_click():
-            if self.play_music_flag.get():
-                self.music_label.config(state=tk.NORMAL)
-                self.music_path_entry.config(state=tk.NORMAL)
-                self.music_select_button.config(state=tk.NORMAL)
-            else:
-                self.music_label.config(state=tk.DISABLED)
-                self.music_path_entry.config(state=tk.DISABLED)
-                self.music_select_button.config(state=tk.DISABLED)
-            self.save_config()
+        if self.play_music_flag.get():
+            self.music_label.config(state=tk.NORMAL)
+            self.music_path_entry.config(state=tk.NORMAL)
+            self.music_select_button.config(state=tk.NORMAL)
+        else:
+            self.music_label.config(state=tk.DISABLED)
+            self.music_path_entry.config(state=tk.DISABLED)
+            self.music_select_button.config(state=tk.DISABLED)
+            if self.music_channel is not None:
+                self.music_channel.stop()
+                self.music_channel = None
+        self.save_config()
 
     def select_remind_sound_path(self):
         if self.can_click():
@@ -465,6 +470,7 @@ class tomatoClock:
             path_ = path_.replace("/", "\\")
             if os.path.exists(path_):
                 self.remind_sound_path.set(path_)
+                self.custom_remind_sound = pygame.mixer.Sound(path_)
             self.save_config()
 
     def select_music_path(self):
@@ -473,6 +479,7 @@ class tomatoClock:
             path_ = path_.replace("/", "\\")
             if os.path.exists(path_):
                 self.music_path.set(path_)
+                self.custom_music = pygame.mixer.Sound(path_)
             self.save_config()
 
     # 用户自定义提示声控制在10秒内
@@ -502,27 +509,30 @@ class tomatoClock:
                 focus_beep()
 
     def play_music(self):
-        if self.custom_music is not None:
-            if self.music_channel is None:
-                pygame.time.delay(500)
-                self.music_channel = self.custom_music.play(-1)
-            else:
-                if self.music_channel.get_busy():
+        if self.play_music_flag.get():
+            if self.custom_music is not None:
+                if self.music_channel is None:
                     pygame.time.delay(500)
-                    self.music_channel.unpause()
-                else:
                     self.music_channel = self.custom_music.play(-1)
+                else:
+                    if self.music_channel.get_busy():
+                        pygame.time.delay(500)
+                        self.music_channel.unpause()
+                    else:
+                        self.music_channel = self.custom_music.play(-1)
 
     def pause_music(self):
-        if self.custom_music is not None and self.music_channel is not None:
-            if self.music_channel.get_busy():
-                pygame.time.delay(500)
-                self.music_channel.pause()
+        if self.play_music_flag.get():
+            if self.custom_music is not None and self.music_channel is not None:
+                if self.music_channel.get_busy():
+                    pygame.time.delay(500)
+                    self.music_channel.pause()
 
     def stop_music(self):
-        if self.custom_music is not None and self.music_channel is not None:
-            if self.music_channel.get_busy():
-                self.music_channel.fadeout(1000)
+        if self.play_music_flag.get():
+            if self.custom_music is not None and self.music_channel is not None:
+                if self.music_channel.get_busy():
+                    self.music_channel.fadeout(1000)
 
     def shake_window(self):
         if self.shake_flag.get():
