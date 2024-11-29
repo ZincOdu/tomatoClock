@@ -6,10 +6,13 @@ import os
 import time
 import threading
 import pygame
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from utils import (TomatoMeter, break_beep, focus_beep, warning_sound,
                    get_icon_img, get_like_img)
 
-min2sec = 2
+min2sec = 60
+version = 'v1.0.0'
 
 class tomatoClock:
     def __init__(self, master):
@@ -47,12 +50,17 @@ class tomatoClock:
         self.music_path.set("")
         self.custom_music = None
         self.music_channel = None
-
-        # 按钮防抖
-        self.last_click_time = 0
+        self.today = time.strftime("%Y-%m-%d %A", time.localtime())
+        self.focus_color = '#F47378'
+        self.break_color = '#6BD089'
 
         # 加载配置
         self.load_config()
+        # 加载统计数据
+        self.load_summary()
+
+        # 按钮防抖
+        self.last_click_time = 0
 
         # 选项卡容器
         self.notebook = ttk.Notebook(self.master)
@@ -94,9 +102,9 @@ class tomatoClock:
 
         # 日期
         date_frame = ttk.Frame(self.tab2)
-        date_frame.pack(pady=(5, 0))
+        date_frame.pack(pady=(15, 0))
         tk.Label(date_frame, text="今天是").pack(side=tk.LEFT)
-        tk.Label(date_frame, text=time.strftime("%Y-%m-%d %A", time.localtime())).pack(side=tk.LEFT, padx=5)
+        tk.Label(date_frame, text=self.today).pack(side=tk.LEFT, padx=5)
 
         # 总番茄统计
         tomato_count_frame = ttk.Frame(self.tab2)
@@ -118,6 +126,25 @@ class tomatoClock:
         self.total_break_time_label = tk.Label(total_time_frame, text=f"{self.total_break_time}")
         self.total_break_time_label.pack(side=tk.LEFT, padx=2)
         tk.Label(total_time_frame, text=f"分钟").pack(side=tk.LEFT, padx=2)
+
+        # 绘制番茄时间统计图
+        self.tomato_chart_frame = ttk.Frame(self.tab2)
+        self.tomato_chart_frame.pack(pady=(10, 0))
+        self.fig = plt.Figure(figsize=(2, 1), dpi=100)
+        self.ax = self.fig.add_subplot(111)
+        self.focus_bar = self.ax.barh([1], [self.total_focus_time], color=self.focus_color)
+        self.break_bar = self.ax.barh([0], [self.total_break_time], color=self.break_color)
+        self.ax.bar_label(self.focus_bar, label_type='edge', color=self.focus_color)
+        self.ax.bar_label(self.break_bar, label_type='edge', color=self.break_color)
+        self.ax.set_xticks([])
+        self.ax.set_yticks([])
+        self.ax.spines['top'].set_color('none')
+        self.ax.spines['right'].set_color('none')
+        self.ax.spines['bottom'].set_color('none')
+        self.ax.spines['left'].set_color('gray')
+        self.chart_canvas = FigureCanvasTkAgg(self.fig, master=self.tomato_chart_frame)
+        self.chart_canvas.get_tk_widget().pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.chart_canvas.draw()
 
         # tab3
         self.tab3 = ttk.Frame(self.notebook)
@@ -209,11 +236,12 @@ class tomatoClock:
         self.tab4 = ttk.Frame(self.notebook)
         self.notebook.add(self.tab4, text="赞赏")
         self.like_img = ImageTk.PhotoImage(data=get_like_img())
-        ttk.Label(self.tab4, image=self.like_img).pack(pady=(10, 0))
+        ttk.Label(self.tab4, image=self.like_img).pack(pady=(5, 0))
+        tk.Label(self.tab4, text=version, font=("Arial", 8), state=tk.DISABLED).pack(pady=(5, 0))
 
     def load_config(self):
         try:
-            with open(self.config_path, "r") as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 lines = f.readlines()
                 self.focus_time = int(lines[0].strip())
                 self.break_time = int(lines[1].strip())
@@ -243,7 +271,7 @@ class tomatoClock:
         if not os.path.exists(self.music_path.get()):
             self.music_path.set("")
             self.custom_music = None
-        with open(self.config_path, "w") as f:
+        with open(self.config_path, "w", encoding="utf-8") as f:
             f.write(f"{self.focus_time}\n")
             f.write(f"{self.break_time}\n")
             f.write(f"{self.beep_flag.get()}\n")
@@ -252,6 +280,51 @@ class tomatoClock:
             f.write(f"{self.lock_screen_flag.get()}\n")
             f.write(f"{self.play_music_flag.get()}\n")
             f.write(f"{self.music_path.get()}\n")
+
+    def load_summary(self):
+        try:
+            with open("summary.txt", "r", encoding="utf-8") as f:
+                lines = f.readlines()
+                today = lines[0].strip()
+            if today == self.today:
+                self.tomato_count = int(lines[1].strip())
+                self.total_focus_time = int(lines[2].strip())
+                self.total_break_time = int(lines[3].strip())
+            else:
+                with open("summary.txt", "w", encoding="utf-8") as f:
+                    f.write(f"{self.today}\n")
+                    f.write(f"0\n")
+                    f.write(f"0\n")
+                    f.write(f"0\n")
+        except:
+            pass
+
+    def save_summary(self):
+        today = time.strftime("%Y-%m-%d %A", time.localtime())
+        if not today == self.today:
+            self.today = today
+            self.tomato_count = 0
+            self.total_focus_time = 0
+            self.total_break_time = 0
+        with open("summary.txt", "w", encoding="utf-8") as f:
+            f.write(f"{self.today}\n")
+            f.write(f"{self.tomato_count}\n")
+            f.write(f"{self.total_focus_time}\n")
+            f.write(f"{self.total_break_time}\n")
+
+    def update_summary_chart(self):
+        self.ax.clear()
+        self.focus_bar = self.ax.barh([1], [self.total_focus_time], color=self.focus_color)
+        self.break_bar = self.ax.barh([0], [self.total_break_time], color=self.break_color)
+        self.ax.bar_label(self.focus_bar, label_type='edge', color=self.focus_color)
+        self.ax.bar_label(self.break_bar, label_type='edge', color=self.break_color)
+        self.ax.set_xticks([])
+        self.ax.set_yticks([])
+        self.ax.spines['top'].set_color('none')
+        self.ax.spines['right'].set_color('none')
+        self.ax.spines['bottom'].set_color('none')
+        self.ax.spines['left'].set_color('gray')
+        self.chart_canvas.draw()
 
     def set_tab3_disabled(self):
         for frame_child in self.tab3.winfo_children():
@@ -282,6 +355,7 @@ class tomatoClock:
         self.set_tab3_enabled()
 
     def switch_to_start(self):
+        self.today = time.strftime("%Y-%m-%d %A", time.localtime())
         self.is_running = True
         self.start_pause_button.config(text="暂停")
         if self.state == "focus":
@@ -348,6 +422,8 @@ class tomatoClock:
                 self.shake_window()
                 self.total_focus_time += self.focus_time
                 self.total_focus_time_label.config(text=f"{self.total_focus_time}")
+                self.save_summary()
+                self.update_summary_chart()
                 self.lock_screen()
         elif self.is_running and self.state == "break":
             self.passing_time_sec += 1
@@ -364,6 +440,8 @@ class tomatoClock:
                 self.total_tomato_label.config(text=f"{self.tomato_count}")
                 self.total_break_time += self.break_time
                 self.total_break_time_label.config(text=f"{self.total_break_time}")
+                self.save_summary()
+                self.update_summary_chart()
 
     # 按钮防抖
     def can_click(self):
